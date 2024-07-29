@@ -274,8 +274,17 @@ export function getChannels(asyncapi) {
         ? channelBinding.exchange
         : defaultExchange;
 
+      const publisher1 = createPublisher(channel.publish());
+      if (!channel.hasPublish()) {
+        throw new Error(`Channel ${channelName} does not have a publish operation`);
+      }
+      const routingKey = publisher1.cc;
+      if (!routingKey) {
+        throw new Error(`Channel ${channelName} does not have a routing key`);
+      }
+
       return {
-        routingKey: channelName,
+        routingKey,
         publisher: channel.hasPublish()
           ? createPublisher(channel.publish())
           : undefined,

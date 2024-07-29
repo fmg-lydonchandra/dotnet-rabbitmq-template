@@ -16,7 +16,7 @@ public interface IAmqpService : IDisposable
     /// </summary>
     /// <param name="message">The message to be handled by this amqp operation</param>
     void ${toPascalCase(channel.publisher.operationId)}(${toPascalCase(
-  channel.publisher.messageType
+  (`${channel.publisher.messageType}Message`)
 )} message);
         
         `

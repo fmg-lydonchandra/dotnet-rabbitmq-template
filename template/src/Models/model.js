@@ -13,11 +13,81 @@ import { CSharpGenerator, CSHARP_COMMON_PRESET, FormatHelpers } from '@asyncapi/
  * @returns 
  */
 export default async function modelRenderer({ asyncapi, params }) {
-  const typescriptGenerator = new CSharpGenerator({presets: [{preset: CSHARP_COMMON_PRESET}]});
-  const generatedModels = await typescriptGenerator.generate(asyncapi);
+  const csharpGenerator = new CSharpGenerator({
+    autoImplementedProperties: true,
+    //todo: find a way to enable equal, it has incorrect signature on the generated C#
+    equal: false
+  });
+  const generatedModels = await csharpGenerator.generate(asyncapi, { handleNullable: true, equal: false });
+
+  // console.log(JSON.stringify(generatedModels, null, 2));
+  const channels = asyncapi.channels();
+  for (const [channelName, channel] of Object.entries(channels)) {
+    const channelBinding = channel.binding('amqp');
+    // const defaultQueue = {
+    //   name: '',
+    //   'x-prefetch-count': 100,
+    //   'x-confirm': false
+    // };
+    // const defaultExchange = {
+    //   name: '',
+    //   type: 'topic',
+    //   durable: true,
+    //   autoDelete: false,
+    //   'x-alternate-exchange': '',
+    //   vhost: '/'
+    // };
+    const queue = channelBinding.queue ? channelBinding.queue : '';
+    const exchange = channelBinding.exchange ? channelBinding.exchange : '';
+    console.log('')
+    console.log('queue', queue);
+    console.log('exchange', exchange);
+    console.log('channelBinding', channelBinding);
+    console.log('publish', channel.publish().binding('amqp'));
+    console.log('subscribe', channel.subscribe().binding('amqp'));
+    // example:
+    // queue { name: 'asset_state_queue', durable: true, exclusive: true }
+    // exchange {
+    //   name: 'asset_state',
+    //       type: 'topic',
+    //       durable: true,
+    //       autoDelete: false,
+    //       vhost: '/'
+    // }
+    // channelBinding {
+    //   is: 'routingKey',
+    //       exchange: {
+    //         name: 'asset_state',
+    //         type: 'topic',
+    //         durable: true,
+    //         autoDelete: false,
+    //         vhost: '/'
+    //   },
+    //   queue: { name: 'asset_state_queue', durable: true, exclusive: true },
+    //   bindingVersion: '0.2.0'
+    // }
+    // publish {
+    //   cc: [ 'asset.v1.{id}.state.changed' ],
+    //       priority: 10,
+    //       mandatory: false,
+    //       deliveryMode: 2,
+    //       timestamp: false,
+    //       ack: false,
+    //       bindingVersion: '0.2.0'
+    // }
+    // subscribe {
+    //   cc: [ 'asset.v1.{id}.state.changed' ],
+    //       deliveryMode: 2,
+    //       timestamp: true,
+    //       ack: false,
+    //       bindingVersion: '0.2.0'
+    // }
+  }
+  // console.log(JSON.stringify(channels, null, 2));
   const files = [];
   for (const generatedModel of generatedModels) {
     const className = FormatHelpers.toPascalCase(generatedModel.modelName);
+    console.log('className', className);
     const modelFileName = `${className}.cs`;
     const fileContent = `
 ${generatedModel.dependencies.join('\n')}
