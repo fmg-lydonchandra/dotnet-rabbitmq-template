@@ -57,12 +57,17 @@ public class AmqpService : IAmqpService
     /// Operations from async api specification
     /// </summary>
     /// <param name="message">The message to be handled by this amqp operation</param>
-    public void ${channel.publisher.operationId}(${channel.publisher.messageType} message)
+    public void ${channel.publisher.operationId}(${`${channel.publisher.messageType}Message`} message)
     {
         var exchange = "${channel.exchange}";
         var routingKey = "${channel.routingKey}";
 
         var channel = _channelPool.GetChannel("${channel.publisher.operationId}");
+        if (channel == null) 
+        {
+            _logger.Error("Channel not found for operation {OperationId}", "${channel.publisher.operationId}");
+            throw new KeyNotFoundException($"No channel found for {${channel.publisher.operationId}}");
+        }
         var exchangeProps = new Dictionary<string, object>
         {
             {"CC", "${channel.publisher.cc}"},
@@ -86,7 +91,7 @@ public class AmqpService : IAmqpService
         props.Timestamp = new AmqpTimestamp(DateTimeOffset.UnixEpoch.Ticks);
         props.Expiration = "${channel.publisher.expiration}";
 
-        _logger.Verbose("Sending message {@${channel.publisher.messageType}} with correlation id {CorrelationId}", 
+        _logger.Verbose("Sending message {@${`${channel.publisher.messageType}Message`}} with correlation id {CorrelationId}", 
             message, 
             props.CorrelationId);
         
@@ -110,6 +115,11 @@ public class AmqpService : IAmqpService
     {
         var queue = "${channel.queue}"; // queue from specification
         var channel = _channelPool.GetChannel("${channel.subscriber.operationId}");
+        if (channel == null) 
+        {
+            _logger.Error("Channel not found for operation {OperationId}", "${channel.subscriber.operationId}");
+            throw new KeyNotFoundException($"No channel found for {${channel.subscriber.operationId}}");
+        }
 
         // TODO: declare passive?
         channel.QueueDeclare(queue);
@@ -126,8 +136,8 @@ public class AmqpService : IAmqpService
         consumer.Received += (_, ea) =>
         {
             var body = ea.Body.ToArray();
-            var message = JsonSerializer.Deserialize<${channel.subscriber.messageType}>(Encoding.UTF8.GetString(body));
-            _logger.Verbose("${channel.subscriber.messageType} received, {@${channel.subscriber.messageType}}", message);
+            var message = JsonSerializer.Deserialize<${`${channel.subscriber.messageType}Message`}>(Encoding.UTF8.GetString(body));
+            _logger.Verbose("${`${channel.subscriber.messageType}Message`} received, {@${`${channel.subscriber.messageType}Message`}}", message);
 
             try
             {
@@ -137,7 +147,7 @@ public class AmqpService : IAmqpService
             }
             catch (Exception e)
             {
-                _logger.Error(e, "Something went wrong trying to process message {@${channel.subscriber.messageType}},", message);
+                _logger.Error(e, "Something went wrong trying to process message {@${`${channel.subscriber.messageType}Message`}},", message);
                 channel.BasicReject(ea.DeliveryTag, false);
             }
         };
@@ -152,8 +162,8 @@ public class AmqpService : IAmqpService
 
     public void Dispose()
     {
-        _channelPool?.Dispose();
-        _connection?.Dispose();
+        _channelPool.Dispose();
+        _connection.Dispose();
     }
 }`;
 };

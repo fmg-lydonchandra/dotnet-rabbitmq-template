@@ -23,6 +23,7 @@ ag .\asyncapi.yaml .\dotnet-rabbitmq-template\ -o .\output --force-write
 The generated output shall be seen a subscriber and/or publisher of message on/from a rabbit mq broker.
 
 ## Requirements
+* nodejs v14
 * @asyncapi/generator < v2.0.0 > v1.1.1
 
 Install the generator through [npm or run it from docker official installer](https://github.com/asyncapi/generator#install).

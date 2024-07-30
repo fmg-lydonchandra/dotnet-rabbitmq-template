@@ -1,0 +1,310 @@
+asyncapi: 2.6.0
+id: "urn:asset-state"
+tags:
+  - name: AssetState
+
+info:
+  title: Asset State Interface
+  version: '1.0.0'
+  description: |
+    Publishes events for an asset's state and activity.
+  contact:
+    name: API Support
+    url: https://fmgl-autonomy.atlassian.net/wiki/spaces/TEAM/pages/449413226/Asset+State+Interface+Definition
+    email: travis.quirk@fortescue.com
+  license:
+    name: Proprietary License
+    url: https://github.com/fmgl-autonomy/robotics-toolkit/blob/master/docs/tools/licenses.md
+
+servers:
+  development:
+    url: localhost:{port}
+    protocol: amqp
+    description: Local RabbitMQ message broker.
+    protocolVersion: "0.9.1"
+    variables:
+      port:
+        default: "5672"
+        enum:
+          - "5672"
+          - "15672"
+
+# docs at #https://github.com/asyncapi/bindings/tree/124c2112b55cdcb89b03014e811cd0de7c1abb42/amqp
+
+channels:
+  'asset.v1.{id}.state.changed':
+    description: Channel for Asset State communication.
+    bindings:
+      amqp:
+        is: routingKey
+        exchange:
+          name: asset_state
+          type: topic
+          durable: true
+          # exchange.exclusive not in spec
+          #          exclusive: true
+          autoDelete: false
+          vhost: /
+        #        routingKey:
+        #          name: asset.v1.{id}.state.changed
+        queue:
+          name: asset_state_queue
+          durable: true
+          exclusive: true
+        bindingVersion: 0.2.0
+    publish:
+      operationId: sendAssetStateChanged
+      summary: Publishes asset state changed
+      bindings:
+        amqp:
+          # todo: expiration?
+          # todo: userId: guest?
+          priority: 10
+          mandatory: false
+          # deliveryMode = 1:transient, 2:persistent
+          deliveryMode: 2
+          # no replyTo, consumer cannot response to this message
+          timestamp: false
+          ack: false
+          bindingVersion: 0.2.0
+      message:
+        $ref: "#/components/messages/AssetStateChanged"
+    subscribe:
+      operationId: receiveAssetStateChanged
+      bindings:
+        amqp:
+          cc: [ 'asset.v1.{id}.state.changed' ]
+          # deliveryMode = 1:transient, 2:persistent
+          deliveryMode: 2
+          # no replyTo, consumer cannot response to this message
+          timestamp: true
+          ack: false
+          bindingVersion: 0.2.0
+      message:
+        $ref: '#/components/messages/AssetStateChanged'
+
+#  asset/activitychanged:
+#    description: Channel for Asset Activity communication.
+#    publish:
+#      operationId: sendAssetActivityChanged
+#      summary: Publishes asset activity changed
+#      message:
+#        $ref: "#/components/messages/AssetActivityChanged"
+#    subscribe:
+#      operationId: receiveAssetActivityChanged
+#      message:
+#        $ref : '#/components/messages/AssetActivityChanged'
+#    bindings:
+#      amqp:
+#        is: routingKey
+#        exchange:
+#          name: asset_state
+#          type: topic
+#          durable: true
+#          exclusive: true
+#          autoDelete: false
+#          vhost: /
+#        routingKey:
+#          name: asset.v1.{id}.activity.changed
+#        queue:
+#          name: asset_activity_queue
+#          durable: true
+#
+#  asset/activityquery:
+#    description: Channel for Asset Activity Query communication.
+#    publish:
+#      operationId: requestActivityState
+#      message:
+#        $ref : '#/components/messages/AssetActivityQuery'
+#    subscribe:
+#      operationId: receiveAssetActivityResponse
+#      message:
+#        $ref : '#/components/messages/AssetActivityResponse'
+#    bindings:
+#      amqp:
+#        is: routingKey
+#        exchange:
+#          name: asset_state
+#          type: topic
+#          durable: true
+#          exclusive: true
+#          autoDelete: false
+#          vhost: /
+#        routingKey:
+#          name: asset.v1.{id}.activity.query
+#        queue:
+#          name: asset_activity_queue
+#          durable: true
+#
+#  asset/allactivityquery:
+#    description: Channel for All Asset Activity Query communication.
+#    publish:
+#      operationId: requestAllActivityState
+#      message:
+#        $ref : '#/components/messages/AssetActivityQuery'
+#    subscribe:
+#      operationId: receiveAllAssetActivityResponse
+#      message:
+#        $ref : '#/components/messages/AssetActivityResponse'
+#    bindings:
+#      amqp:
+#        is: routingKey
+#        exchange:
+#          name: asset_state
+#          type: topic
+#          durable: true
+#          exclusive: true
+#          autoDelete: false
+#          vhost: /
+#        routingKey:
+#          name: asset.v1.all.activity.query
+#        queue:
+#          name: asset_activity_queue
+#          durable: true
+
+components:
+
+  messages:
+
+    AssetStateChanged:
+      name: assetStateChanged
+      title: Asset State changed
+      summary: Raised when an asset's state changes.
+      contentType: application/json
+      payload:
+        $ref: '#/components/schemas/assetStateChangedMessage'
+
+  #    AssetActivityChanged:
+  #      name: assetActivityChanged
+  #      title: Asset Activity changed
+  #      summary: Raised when an asset's activity changes.
+  #      contentType: application/json
+  #      payload:
+  #        $ref: '#/components/schemas/assetActivityChangedMessage'
+  #
+  #    AssetActivityQuery:
+  #      name: activityStateQuery
+  #      title: Activity State query
+  #      summary: Used by client to request an asset's current activity
+  #      contentType: application/json
+  #      payload:
+  #        $ref: '#/components/schemas/activityStateQueryMessage'
+  #
+  #    AssetActivityResponse:
+  #      name: assetActivityResponse
+  #      title: Asset Activity Response
+  #      summary: Response to an AssetActivityQuery.
+  #      contentType: application/json
+  #      payload:
+  #        $ref: '#/components/schemas/assetActivityQueryResponse'
+
+  schemas:
+    assetStateChangedMessage:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          description: The timestamp of the event.
+          format: date-time
+        assetId:
+          description: The asset id.
+          type: string
+        isLoaded:
+          description: True when truck is loaded; false otherwise.
+          type: boolean
+        trayUpState:
+          description: True when tray is up; false otherwise.
+          type: boolean
+        movementState:
+          $ref: '#/components/schemas/movementStateEnum'
+          description: Provides the movement state.
+        inQueue:
+          description: True if the asset is queueing; false otherwise.
+          type: boolean
+        queuedBehind:
+          description: When queueing, the asset id in front of this asset; otherwise empty.
+          type: string
+        targetLoader:
+          description: When heading towards a loader, the asset id of the target loader; otherwise empty.
+          type: string
+        inQueueRange:
+          description: True when the asset is in queue range; false otherwise.
+          type: boolean
+        inSpotRange:
+          description: True when the asset is in spot range; false otherwise.
+          type: boolean
+        inLoadRange:
+          description: True when the asset is in load range; false otherwise.
+          type: boolean
+        inDumpRange:
+          description: True when the asset is in dump range; false otherwise.
+          type: boolean
+
+    #    assetActivityChangedMessage:
+    #      type: object
+    #      additionalProperties: false
+    #      properties:
+    #        timestamp:
+    #          type: string
+    #          format: date-time
+    #        assetId:
+    #          type: string
+    #        previousAssetActivity:
+    #          $ref: '#/components/schemas/assetActivityEnum'
+    #        assetActivity:
+    #          $ref: '#/components/schemas/assetActivityEnum'
+    #        assetStateChangedMessage:
+    #          $ref: '#/components/schemas/assetStateChangedMessage'
+    #
+    #    assetStateQueryMessage:
+    #      type: object
+    #      additionalProperties: false
+    #      properties:
+    #        assetId:
+    #          type: string
+    #
+    #    assetStateQueryResponse:
+    #      type: object
+    #      properties:
+    #        assetId:
+    #          type: string
+    #        assetStateChangedMessage:
+    #          $ref: '#/components/schemas/assetStateChangedMessage'
+    #
+    #    activityStateQueryMessage:
+    #      type: object
+    #      additionalProperties: false
+    #      properties:
+    #        assetId:
+    #          type: string
+    #
+    #    assetActivityQueryResponse:
+    #      type: object
+    #      properties:
+    #        assetId:
+    #          type: string
+    #        assetActivityChangedMessage:
+    #          $ref: '#/components/schemas/assetActivityChangedMessage'
+
+    movementStateEnum:
+      type: string
+      description: Provides the movement state.
+      enum:
+        - stationary
+        - forwards
+        - backwards
+
+
+    assetActivityEnum:
+      type: string
+      enum:
+        - travellingEmpty
+        - queueAtSource
+        - spotAtSource
+        - load
+        - travellingLoaded
+        - queueAtDestination
+        - spotAtDestination
+        - dumping
+        - loading
+        - hanging

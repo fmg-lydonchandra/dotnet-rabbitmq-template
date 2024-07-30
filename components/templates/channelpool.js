@@ -35,12 +35,12 @@ public class ChannelPool : IChannelPool
         /// <summary>
         /// The underlying amqp model/channel
         /// </summary>
-        public IModel Model { get; init; }
+        public IModel Model { get; init; }  = null!;
 
         public void Dispose()
         {
-            Model?.Close();
-            Model?.Dispose();
+            Model.Close();
+            Model.Dispose();
         }
     }
     
@@ -64,8 +64,8 @@ public class ChannelPool : IChannelPool
             "${toPascalCase(consumer.operationId)}",
             CreateChannel(
                 connection, 
-                ${consumer.prefetchCount},
-                ${consumer.confirm}));`
+                ${consumer.prefetchCount ? consumer.prefetchCount : 100},
+                ${consumer.confirm ? consumer.config : false}));`
   )}
         
     }
@@ -76,14 +76,14 @@ public class ChannelPool : IChannelPool
     }
     
     public IModel GetChannel(string operationId)
-    {
+    {        
         // check for channel
         if (!_channels.TryGetValue(operationId, out var channel))
         {
             throw new KeyNotFoundException($"No channel found for {operationId}");
         }
-
-        if (!channel.Model.IsClosed)
+               
+        if (!channel.Model!.IsClosed)
         {
             return channel.Model;
         }
